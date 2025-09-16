@@ -1,0 +1,137 @@
+name: Nightly Python Standards Compliance Check
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  check-compliance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write  # To create issues for non-compliant repos
+
+    steps:
+      - name: Checkout compliance checker
+        uses: actions/checkout@v4
+        with:
+          repository: LiveData-Inc/python-project-standards  # Repository containing the checker script
+          path: checker
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests toml
+
+      - name: Get list of Python repositories
+        id: get-repos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get all repos with python topics
+          repos=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/orgs/LiveData-Inc/repos?type=all&per_page=100" \
+            --jq '.[] | select(.topics[]? | IN("python-lib", "python-stack", "python-app", "python-shared", "composite-app")) | .full_name')
+
+          # Save to file
+          echo "$repos" > repos.txt
+          echo "Found $(wc -l < repos.txt) Python repositories"
+
+      - name: Run compliance checks
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create results directory
+          mkdir -p results
+
+          # Check each repository
+          while IFS= read -r repo; do
+            echo "Checking $repo..."
+            python checker/src/compliance_checker/check_python_project_standards.py "https://github.com/$repo" > "results/${repo//\//_}.txt" 2>&1 || true
+          done < repos.txt
+
+      - name: Generate summary report
+        run: |
+          python << 'EOF'
+          import os
+          import re
+          from pathlib import Path
+
+          results_dir = Path("results")
+          summary = []
+
+          for result_file in results_dir.glob("*.txt"):
+              content = result_file.read_text()
+              repo_name = result_file.stem.replace("_", "/")
+
+              # Extract compliance score
+              score_match = re.search(r"Compliance Score: (\d+\.?\d*)%", content)
+              if score_match:
+                  score = float(score_match.group(1))
+                  status = "🟢" if score >= 90 else "🟡" if score >= 75 else "🔴"
+                  summary.append((repo_name, score, status))
+
+          # Sort by score
+          summary.sort(key=lambda x: x[1], reverse=True)
+
+          # Generate markdown report
+          report = ["# Python Standards Compliance Report", ""]
+          report.append(f"**Date**: {os.environ.get('GITHUB_RUN_DATE', 'Unknown')}")
+          report.append(f"**Total Repositories**: {len(summary)}")
+          report.append("")
+          report.append("## Summary")
+          report.append("")
+          report.append("| Repository | Score | Status |")
+          report.append("|------------|-------|--------|")
+
+          for repo, score, status in summary:
+              report.append(f"| {repo} | {score:.1f}% | {status} |")
+
+          # Calculate statistics
+          if summary:
+              avg_score = sum(s[1] for s in summary) / len(summary)
+              compliant = sum(1 for s in summary if s[1] >= 75)
+              report.append("")
+              report.append("## Statistics")
+              report.append(f"- **Average Score**: {avg_score:.1f}%")
+              report.append(f"- **Compliant Repos** (≥75%): {compliant}/{len(summary)}")
+
+          # Write report
+          Path("compliance-report.md").write_text("\n".join(report))
+          print("\n".join(report))
+          EOF
+
+      - name: Upload results
+        uses: actions/upload-artifact@v3
+        with:
+          name: compliance-results
+          path: |
+            results/
+            compliance-report.md
+
+      - name: Create issue for non-compliant repos
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if there's already an open compliance issue
+          existing=$(gh issue list --label "python-compliance" --state open --json number --jq '.[0].number')
+
+          if [ -n "$existing" ]; then
+            echo "Updating existing issue #$existing"
+            gh issue comment "$existing" --body-file compliance-report.md
+          else
+            echo "Creating new compliance issue"
+            gh issue create \
+              --title "Python Standards Compliance Report - $(date +%Y-%m-%d)" \
+              --label "python-compliance" \
+              --body-file compliance-report.md
+          fi

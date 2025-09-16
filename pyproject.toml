@@ -1,0 +1,94 @@
+[project]
+name = "aa-bff-auth-compliance"
+version = "1.0.0"
+description = "Python Standards Compliance Checker and BFF-Auth Analysis Tools"
+authors = [
+    { name = "Cloud Development Team", email = "cloud-team@company.com" },
+]
+readme = "README.md"
+keywords = ["python-app"]
+requires-python = ">=3.13,<4.0.0"
+dependencies = [
+    "toml>=0.10.2",
+]
+
+[tool.poetry]
+requires-poetry = ">=2.1"
+packages = [{ include = "compliance_checker", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
+black = "*"
+ruff = "*"
+pyright = "*"
+pre-commit = "*"
+
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
+poetry-plugin-shell = "*"
+ld-poetry-export-group-plugin = "*"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    "--cov-report=term-missing",
+    "--cov=compliance_checker",
+]
+pythonpath = ["tests/unit"]
+testpaths = ["tests/unit"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "module"
+asyncio_default_test_loop_scope = "module"
+markers = [
+    "current: mark a single test for debugging",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::ResourceWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning"
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "^\\s*\\.\\.\\.\\s*$",
+    "^.*:\\s*\\.\\.\\.\\s*$",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.gha.pipaudit]
+ignore-vulns = []
+
+[tool.pyright]
+extraPaths = ["src"]
+include = ["src/**"]
+exclude = ["**/__pycache__"]
+typeCheckingMode = "basic"
+pythonVersion = "3.13"
+pythonPlatform = "All"
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint]
+extend-select = ["I"]  # Enable import sorting
+
+[[tool.poetry.source]]
+name = "ld"
+url = "https://livedata-601616385421.d.codeartifact.us-east-1.amazonaws.com/pypi/ld/simple/"
+priority = "primary"
+
+[tool.sonar]
+sonar.cpd.exclusions = "tests/unit,src/compliance_checker/check_python_project_standards.py"

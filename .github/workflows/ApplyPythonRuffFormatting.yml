@@ -1,0 +1,10 @@
+name: Apply-Python-Ruff-Formatting
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ApplyPythonRuffFormatting:
+    uses: LiveData-Inc/workflow-library/.github/workflows/ApplyPythonRuffFormatting.yaml@main
+    secrets:
+      devops_PAT_token: "${{ secrets.DEVOPS_LIVEDATA_PAT }}"

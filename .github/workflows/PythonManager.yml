@@ -1,0 +1,47 @@
+name: Python-Manager
+
+on: [push]
+
+jobs:
+  Precheck:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      pytestcov: "${{ steps.set_pytestcov.outputs.pytestcov }}"
+    steps:
+    - name: set pytestcov
+      id: set_pytestcov
+      run: |
+        topicname=$(gh api repos/${{ github.repository }}/topics --jq '.names | join(",")')
+        echo "topics: $topicname"
+        if [[ "$topicname" == *python-lib* ]]; then
+          pytestcov="100"
+        else
+          pytestcov="80"
+        fi
+        echo "pytestcov: $pytestcov"
+        echo "pytestcov=$pytestcov" >> "$GITHUB_OUTPUT"
+      env:
+        GH_TOKEN: "${{ secrets.DEVOPS_LIVEDATA_PAT }}"
+      shell: bash
+
+  Python-Manager:
+    needs: Precheck
+    uses: LiveData-Inc/workflow-library/.github/workflows/PythonManager.yaml@main
+    with:
+      readmeexists: "true"
+      srdexists: "true"
+      descriptionexists: "true"
+      branchprotection: "false"
+      pyprojecttomlexists: "true"
+      poetrylockexists: "false"
+      pipaudit: "true"
+      ruffcheck: "true"
+      pytest: "false"
+      pytestcov: "${{ needs.Precheck.outputs.pytestcov }}"
+      poetryexport: "true"
+    secrets:
+      devops_PAT_token: "${{ secrets.DEVOPS_LIVEDATA_PAT }}"
+      codeArtifact_ARN: "${{ secrets.CODEARTIFACT_ARN }}"
