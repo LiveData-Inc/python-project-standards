@@ -1,7 +1,7 @@
 [project]
-name = "aa-bff-auth-compliance"
-version = "1.0.0"
-description = "Python Standards Compliance Checker and BFF-Auth Analysis Tools"
+name = "python-project-standards"
+version = "1.0.1"
+description = "Python Standards Compliance Checker"
 authors = [
     { name = "Cloud Development Team", email = "cloud-team@company.com" },
 ]
