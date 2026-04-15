@@ -37,6 +37,7 @@ jobs:
       branchprotection: "false"
       pyprojecttomlexists: "true"
       poetrylockexists: "false"
+      backuprepoexists: "false"
       pipaudit: "true"
       ruffcheck: "true"
       pytest: "false"
