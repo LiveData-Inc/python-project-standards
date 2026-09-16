@@ -1,6 +1,14 @@
 name: Python-Manager
 
-on: [push]
+on:
+  push:
+
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    branches:
+      - main
 
 jobs:
   Precheck:
